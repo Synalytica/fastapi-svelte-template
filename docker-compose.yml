@@ -1,0 +1,84 @@
+version: "3.1"
+services:
+        db:
+                image: mongo
+                restart: always
+                networks:
+                        - db_network # for API reqs
+                environment:
+                        MONGO_INITDB_ROOT_USERNAME: $DB_USERNAME
+                        MONGO_INITDB_ROOT_PASSWORD: $DB_PASSWORD
+                        MONGO_INITDB_DATABASE: $MONGO_INITDB_DATABASE
+                volumes:
+                        - db_vol:/data/db
+
+        db-interface:
+                image: mongo-express
+                restart: always
+                environment:
+                        ME_CONFIG_MONGODB_ADMINUSERNAME: $DB_USERNAME
+                        ME_CONFIG_MONGODB_ADMINPASSWORD: $DB_PASSWORD
+                        ME_CONFIG_SITE_BASEURL: /db_interface/
+                        ME_CONFIG_MONGODB_SERVER: db
+                networks:
+                        - db_network # access db
+                        - web_network # access the interface
+                depends_on:
+                        - db
+
+        backend:
+                build: ./backend
+                restart: always
+                volumes:
+                        - ./backend:/app
+                environment:
+                        PORT: 8080
+                        DEBUG: $DEBUG
+                        SECRET_KEY: $SECRET_KEY
+                        DATABASE_URL: $DATABASE_URL
+                depends_on:
+                        - db
+                networks:
+                        - db_network # for data fetching/upload
+                        - web_network # for web API
+
+        frontend:
+                build: ./frontend
+                entrypoint: ./entrypoint.sh
+                restart: unless-stopped
+                environment:
+                    NODE_ENV: development  # OR [production]
+                volumes:
+                        - web-root:/home/app/dist
+                        - ./frontend:/home/app/
+                        - /home/app/node_modules
+                environment:
+                        PORT: 5000
+                        DEBUG: $DEBUG
+                depends_on:
+                        - backend
+                networks:
+                        - web_network
+
+        nginx:
+                image: nginx:latest
+                ports:
+                        - 8000:80
+                volumes:
+                        - web-root:/var/www/html
+                        - ./config/nginx:/etc/nginx/conf.d/
+                depends_on:
+                        - backend
+                        - db-interface
+                networks:
+                        - web_network
+
+networks:
+        web_network:
+            driver: bridge
+        db_network:
+            driver: bridge
+
+volumes:
+        web-root:
+        db_vol:
