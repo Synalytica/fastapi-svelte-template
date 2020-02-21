@@ -1,0 +1,6 @@
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:Pk13055/svelte-template.git
+[submodule "backend"]
+	path = backend
+	url = git@github.com:Pk13055/fastapi-template.git
